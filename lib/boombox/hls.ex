@@ -4,20 +4,107 @@ defmodule Boombox.HLS do
   import Membrane.ChildrenSpec
 
   require Membrane.Pad, as: Pad
+
   alias Boombox.Pipeline.Ready
-  alias Membrane.Time
+  alias Membrane.{HTTPAdaptiveStream, Time, UtilitySupervisor}
+
+  defmodule HTTPUploader do
+    @moduledoc false
+    use GenServer
+
+    require Logger
+
+    alias Membrane.HTTPAdaptiveStream.Storages.GenServerStorage
+
+    @spec start_link(directory: String.t()) :: GenServer.on_start()
+    def start_link(config) do
+      GenServer.start_link(__MODULE__, config)
+    end
+
+    @impl true
+    def init(config) do
+      {:ok, %{directory: config[:directory]}}
+    end
+
+    @impl true
+    def handle_call(
+          {GenServerStorage, :store, %{context: %{type: :partial_segment}}},
+          _from,
+          state
+        ) do
+      Logger.warning("LL-HLS is not supported. The partial segment is omitted.")
+      {:reply, :ok, state}
+    end
+
+    @impl true
+    def handle_call({GenServerStorage, :store, params}, _from, state) do
+      location = Path.join(state.directory, params.name)
+
+      reply =
+        :hackney.request(:post, location, [], params.contents, follow_redirect: true)
+        |> handle_request_result()
+
+      {:reply, reply, state}
+    end
+
+    @impl true
+    def handle_call({GenServerStorage, :remove, params}, _from, state) do
+      location = Path.join(state.directory, params.name)
+
+      reply =
+        :hackney.request(:delete, location, [], <<>>, follow_redirect: true)
+        |> handle_request_result()
+
+      {:reply, reply, state}
+    end
+
+    @spec handle_request_result(
+            {:ok, pos_integer(), list(), :hackney.client_ref()}
+            | {:error, term()}
+          ) :: :ok | {:error, term()}
+    defp handle_request_result(result) do
+      case result do
+        {:ok, status, _headers, _ref} when status in 200..299 ->
+          :ok
+
+        {:ok, status, _headers, ref} ->
+          {:ok, body} = :hackney.body(ref)
+          {:error, "Request failed with status code #{status}: #{body}"}
+
+        error ->
+          error
+      end
+    end
+  end
 
   @spec link_output(
           Path.t(),
           Boombox.Pipeline.track_builders(),
-          Membrane.ChildrenSpec.t()
+          Membrane.ChildrenSpec.t(),
+          UtilitySupervisor.t(),
+          transport: :file | :http
         ) :: Ready.t()
-  def link_output(location, track_builders, spec_builder) do
+  def link_output(location, track_builders, spec_builder, utility_supervisor, opts) do
     {directory, manifest_name} =
       if Path.extname(location) == ".m3u8" do
         {Path.dirname(location), Path.basename(location, ".m3u8")}
       else
         {location, "index"}
+      end
+
+    storage =
+      case opts[:transport] do
+        :file ->
+          %HTTPAdaptiveStream.Storages.FileStorage{directory: directory}
+
+        :http ->
+          {:ok, uploader} =
+            UtilitySupervisor.start_link_child(
+              utility_supervisor,
+              {HTTPUploader, directory: directory}
+            )
+
+          %HTTPAdaptiveStream.Storages.GenServerStorage{destination: uploader}
       end
 
     hls_mode =
@@ -31,9 +118,7 @@ defmodule Boombox.HLS do
           %Membrane.HTTPAdaptiveStream.SinkBin{
             manifest_name: manifest_name,
             manifest_module: Membrane.HTTPAdaptiveStream.HLS,
-            storage: %Membrane.HTTPAdaptiveStream.Storages.FileStorage{
-              directory: directory
-            },
+            storage: storage,
             hls_mode: hls_mode
           }
         ),

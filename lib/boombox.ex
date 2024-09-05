@@ -29,7 +29,7 @@ defmodule Boombox do
           (path_or_uri :: String.t())
           | {:mp4, location :: String.t()}
           | {:webrtc, webrtc_signaling()}
-          | {:hls, location :: String.t()}
+          | {:hls, location :: String.t(), transport: :file | :http}
           | {:stream, out_stream_opts()}
 
   @typep procs :: %{pipeline: pid(), supervisor: pid()}
@@ -86,7 +86,7 @@ defmodule Boombox do
       {nil, ".mp4", :output} -> {:mp4, value}
       {scheme, _ext, :input} when scheme in ["rtmp", "rtmps"] -> {:rtmp, value}
       {"rtsp", _ext, :input} -> {:rtsp, value}
-      {nil, ".m3u8", :output} -> {:hls, value}
+      {scheme, ".m3u8", :output} when scheme in [nil, "http", "https"] -> {:hls, value}
       _other -> raise ArgumentError, "Unsupported URI: #{value} for direction: #{direction}"
     end
     |> then(&parse_opt!(direction, &1))
@@ -115,7 +115,11 @@ defmodule Boombox do
         value
 
       {:hls, location} when direction == :output and is_binary(location) ->
-        value
+        parse_opt!(:output, {:hls, location, []})
+
+      {:hls, location, opts} when direction == :output and is_binary(location) ->
+        if Keyword.keyword?(opts),
+          do: {:hls, location, transport: resolve_transport(location, opts)}
 
       {:rtsp, location} when direction == :input and is_binary(location) ->
         value
