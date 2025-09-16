@@ -12,6 +12,12 @@ import sys
 import warnings
 import dataclasses
 import threading
+import tqdm
+import urllib.request
+import platformdirs
+import platform
+import importlib.metadata
+import tarfile
 
 from ._vendor.pyrlang import process, node
 from ._vendor.term import Atom, Pid
@@ -79,6 +85,8 @@ class Boombox(process.Process):
     _python_node_name: ClassVar[str]
     _cookie: ClassVar[str]
 
+    _data_dir: str
+    _version: str
     _process_name: Atom
     _erlang_node_name: Atom
     _receiver: tuple[Atom, Atom] | Pid
@@ -103,9 +111,9 @@ class Boombox(process.Process):
             "RELEASE_COOKIE": self._cookie,
             "RELEASE_DISTRIBUTION": "name",
         }
-        release_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "erlang", "bin", "server"
-        )
+
+        self._download_erlang_boombox()
+        release_path = os.path.join(self._data_dir, "bin", "server")
         self._erlang_process = subprocess.Popen([release_path, "start"], env=env)
         atexit.register(lambda: self._erlang_process.kill())
 
@@ -299,6 +307,62 @@ class Boombox(process.Process):
 
     async def _await_future(self, response_future):
         return await response_future
+
+    def _download_erlang_boombox(self) -> None:
+        class TqdmUpTo(tqdm.tqdm):
+            def update_to(self, b=1, bsize=1, tsize=None):
+                if tsize is not None:
+                    self.total = tsize
+                self.update(b * bsize - self.n)
+
+        try:
+            self._version = importlib.metadata.version("boomboxlib")
+        except importlib.metadata.PackageNotFoundError:
+            self._version = "dev"
+
+        self._data_dir = platformdirs.user_data_dir(
+            appname="boombox", ensure_exists=True, version=self._version
+        )
+
+        if os.path.exists(os.path.join(self._data_dir, "bin", "server")):
+            print("Erlang release already present.")
+            return
+        print("Erlang release not found, downloading...")
+
+        releases_url = "https://github.com/membraneframework-labs/boombox/releases"
+        if self._version == "dev":
+            release_url = os.path.join(releases_url, "latest/download")
+        else:
+            release_url = os.path.join(releases_url, f"download/v{self._version}")
+
+        system = platform.system().lower()
+        arch = platform.machine().lower()
+
+        if system == "linux" and arch == "x86_64":
+            release_tarball = "boombox-server-linux-x86.tar.gz"
+        elif system == "darwin" and arch == "arm64":
+            release_tarball = "boombox-server-macosx-arm.tar.gz"
+        else:
+            raise RuntimeError(f"Unsupported platform: {system} {arch}")
+
+        download_url = os.path.join(release_url, release_tarball)
+        tarball_path = os.path.join(self._data_dir, release_tarball)
+
+        with TqdmUpTo(
+            unit="B",
+            unit_scale=True,
+            unit_divisor=1024,
+            miniters=1,
+            desc=f"Downloading {release_tarball}",
+        ) as t:
+            urllib.request.urlretrieve(
+                download_url, filename=tarball_path, reporthook=t.update_to
+            )
+
+        print("Download complete. Extracting...")
+        with tarfile.open(tarball_path) as tar:
+            tar.extractall(self._data_dir)
+            os.remove(tarball_path)
 
     @staticmethod
     def _dtype_to_sample_format(dtype: np.dtype) -> tuple[AudioSampleFormat, np.dtype]:
