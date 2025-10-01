@@ -1,7 +1,7 @@
 defmodule Boombox.Mixfile do
   use Mix.Project
 
-  @version "0.2.2"
+  @version "0.2.4"
   @github_url "https://github.com/membraneframework/boombox"
 
   def project do
@@ -49,18 +49,9 @@ defmodule Boombox.Mixfile do
       {:membrane_core, "~> 1.2"},
       {:membrane_transcoder_plugin, "~> 0.3.2"},
       {:membrane_webrtc_plugin, "~> 0.25.0"},
-      {:membrane_mp4_plugin, "~> 0.35.2"},
+      {:membrane_mp4_plugin, "~> 0.36.0"},
       {:membrane_realtimer_plugin, "~> 0.9.0"},
-      # {:membrane_http_adaptive_stream_plugin, "~> 0.18.5"},
-      {:membrane_http_adaptive_stream_plugin,
-       github: "membraneframework/membrane_http_adaptive_stream_plugin",
-       ref: "d324bc3d6ecb2da2e73c302815490ba4cdacd768"},
-      # remember to delete the dependency below after
-      # releasing membrane_http_adaptive_stream_plugin
-      {:ex_hls,
-       github: "membraneframework-labs/ex_hls",
-       ref: "58a7ee0e14154d913bd49b22639854d7e74e49ef",
-       override: true},
+      {:membrane_http_adaptive_stream_plugin, "~> 0.19.0"},
       {:membrane_rtmp_plugin, "~> 0.27.2"},
       {:membrane_rtsp_plugin, "~> 0.6.1"},
       {:membrane_rtp_plugin, "~> 0.30.0"},
@@ -69,6 +60,8 @@ defmodule Boombox.Mixfile do
       {:membrane_rtp_h264_plugin, "~> 0.20.0"},
       {:membrane_rtp_opus_plugin, "~> 0.10.0"},
       {:membrane_rtp_h265_plugin, "~> 0.5.2"},
+      {:membrane_h265_ffmpeg_plugin, github: "membraneframework-labs/membrane_h265_ffmpeg_plugin",
+        branch: "update-dependency-provider", override: true},
       {:membrane_ffmpeg_swresample_plugin, "~> 0.20.0"},
       {:membrane_hackney_plugin, "~> 0.11.0"},
       {:membrane_ffmpeg_swscale_plugin, "~> 0.16.2"},
@@ -76,7 +69,9 @@ defmodule Boombox.Mixfile do
       {:membrane_ivf_plugin, "~> 0.8.0"},
       {:membrane_ogg_plugin, "~> 0.5.0"},
       {:membrane_stream_plugin, "~> 0.4.0"},
-      {:membrane_simple_rtsp_server, "~> 0.1.4", only: :test},
+      {:membrane_srt_plugin, "~> 0.1.1"},
+      {:membrane_precompiled_dependency_provider, "~> 0.2.1", override: true},
+      {:membrane_simple_rtsp_server, "~> 0.1.5", only: :test},
       {:image, "~> 0.54.0"},
       {:async_test, github: "software-mansion-labs/elixir_async_test", only: :test},
       # {:playwright, "~> 1.49.1-alpha.1", only: :test},
@@ -223,7 +218,10 @@ defmodule Boombox.Mixfile do
       |> Enum.map(&Path.relative_to(&1, base_dir))
       |> Map.new(&{Path.basename(&1), &1})
 
-    Path.wildcard("#{base_dir}/*/priv/bundlex/*/*")
+    # Restore symlinks
+    # <package>/priv/shared/precompiled/<precompiled_dir> -> ../../../../bundlex-<version>/priv/shared/<precompiled_dir>/lib
+    Path.join(base_dir, "*/priv/bundlex/*/*")
+    |> Path.wildcard()
     |> Enum.each(fn path ->
       name = Path.basename(path)
 
@@ -237,6 +235,9 @@ defmodule Boombox.Mixfile do
       end
     end)
 
+    # Restore symlinks
+    # bundlex-<version>/priv/shared/precompiled/<precompiled_dir>/lib/<some_lib>.dylib -> <some_lib>.<most_precise_version>.dylib
+    # e.g. libvpx.dylib -> libvpx.11.dylib
     Path.join(base_dir, "bundlex*/priv/shared/precompiled/*/lib")
     |> Path.wildcard()
     |> Enum.map(fn lib_dir ->
