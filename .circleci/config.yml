@@ -209,14 +209,12 @@ jobs:
 
   build_python_docs:
     docker:
-      - image: ubuntu
+      - image: curlimages/curl:8.16.0
 
     steps:
       - run:
           name: Trigger docs build
-          command: |
-            apt update
-            apt install -y curl
+          command:
             curl -X POST -d token=$READTHEDOCS_WEBHOOK_TOKEN $READTHEDOCS_WEBHOOK_URL
 
 workflows:
@@ -241,8 +239,8 @@ workflows:
             - elixir/lint
             - compare_versions
           filters: &publish_filters
-            #branches:
-              #ignore: /.*/
+            branches:
+              ignore: /.*/
             tags:
               only: /v.*/
           context:
