@@ -1,7 +1,7 @@
 defmodule Boombox.Mixfile do
   use Mix.Project
 
-  @version "0.2.4"
+  @version "0.6.0"
   @github_url "https://github.com/membraneframework/boombox"
 
   def project do
@@ -60,8 +60,10 @@ defmodule Boombox.Mixfile do
       {:membrane_rtp_h264_plugin, "~> 0.20.0"},
       {:membrane_rtp_opus_plugin, "~> 0.10.0"},
       {:membrane_rtp_h265_plugin, "~> 0.5.2"},
-      {:membrane_h265_ffmpeg_plugin, github: "membraneframework-labs/membrane_h265_ffmpeg_plugin",
-        branch: "update-dependency-provider", override: true},
+      {:membrane_h265_ffmpeg_plugin,
+       github: "membraneframework-labs/membrane_h265_ffmpeg_plugin",
+       branch: "update-dependency-provider",
+       override: true},
       {:membrane_ffmpeg_swresample_plugin, "~> 0.20.0"},
       {:membrane_hackney_plugin, "~> 0.11.0"},
       {:membrane_ffmpeg_swscale_plugin, "~> 0.16.2"},
