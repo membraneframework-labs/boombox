@@ -230,19 +230,19 @@ workflows:
           #filters: *push_filters
       - compare_versions:
           filters: *push_filters
-      #- elixir/hex_publish:
-          #requires:
-            #- elixir/build_test
+      - elixir/hex_publish:
+          requires:
+            - elixir/build_test
             #- test_exclude_browser
-            #- elixir/lint
-            #- compare_versions
-          #filters: &publish_filters
-            #branches:
-              #ignore: /.*/
-            #tags:
-              #only: /v.*/
-          #context:
-            #- Deployment
+            - elixir/lint
+            - compare_versions
+          filters: &publish_filters
+            branches:
+              ignore: /.*/
+            tags:
+              only: /vv.*/
+          context:
+            - Deployment
       - mix_release_server_macos_arm: &mix_release_job_config
           requires:
             - elixir/build_test
