@@ -90,7 +90,7 @@ commands:
           working_directory: ~/project/wheelhouse
           command: |
             /opt/python/cp311-cp311/bin/pip install twine
-            /opt/python/cp311-cp311/bin/twine upload --username __token__ --password $PYPI_API_KEY *
+            /opt/python/cp311-cp311/bin/twine upload --repository testypypi --username __token__ --password $PYPI_API_KEY *
 
 jobs:
   test_exclude_browser:
@@ -193,7 +193,7 @@ jobs:
           command: python -m build --wheel
       - run:
           name: Publish to PyPI
-          command: twine upload --verbose --username __token__ --password $PYPI_API_KEY dist/*
+          command: twine upload --verbose --repository testypypi --username __token__ --password $PYPI_API_KEY dist/*
 
   publish_python_package_linux_x86:
     executor: manylinux_x86_executor
