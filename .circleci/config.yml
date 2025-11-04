@@ -220,16 +220,16 @@ jobs:
 workflows:
   build:
     jobs:
+      - compare_versions:
+          filters: &push_filters
+            tags:
+              only: /v.*/
       #- elixir/build_test:
-          #filters: &push_filters
-            #tags:
-              #only: /v.*/
+          #filters: *push_filters
       #- elixir/lint:
           #filters: *push_filters
       #- test_exclude_browser:
           #filters: *push_filters
-      - compare_versions:
-          filters: *push_filters
       - elixir/hex_publish:
           #requires:
             #- elixir/build_test
