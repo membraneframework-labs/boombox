@@ -189,7 +189,7 @@ jobs:
           path: ~/project
       - run:
           name: Install cibuildwheel
-          command: pip install cibuildwheel
+          command: pip install cibuildwheel twine
       - run:
           name: Build wheels
           command: CIBW_PLATFORM=macos CIBW_ARCHS=arm64 cibuildwheel --output-dir dist
