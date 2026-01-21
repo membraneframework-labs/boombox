@@ -3,6 +3,16 @@ orbs:
   elixir: membraneframework/elixir@1
 
 executors:
+  python_hub_executor:
+    docker:
+      - image: cimg/python:3.11
+    resource_class: medium
+
+  python_hub_executor_arm:
+    docker:
+      - image: cimg/python:3.11
+    resource_class: arm.medium
+
   linux_x86_executor:
     docker:
       - image: membraneframeworklabs/docker_membrane
@@ -82,17 +92,25 @@ commands:
     steps:
       - checkout:
           path: ~/project
+      - setup_remote_docker
+
       - run:
-          name: Build wheel and repair with auditwheel
+          name: Build wheels with cibuildwheel
           command: |
-            /opt/python/cp311-cp311/bin/pip install cibuildwheel
-            CIBW_PLATFORM=linux /opt/python/cp311-cp311/bin/cibuildwheel --output-dir ../wheelhouse
+            pip install cibuildwheel
+
+            # Create the output directory explicitly
+            mkdir -p wheelhouse
+
+            # Run cibuildwheel (it will auto-detect platform and spin up containers)
+            # We output to the local 'wheelhouse' directory
+            cibuildwheel --output-dir wheelhouse
       - run:
           name: Publish to PyPI
           working_directory: ~/project/wheelhouse
           command: |
-            /opt/python/cp311-cp311/bin/pip install twine
-            /opt/python/cp311-cp311/bin/twine upload --repository testpypi --username __token__ --password $TESTPYPI_API_KEY *
+            pip install twine
+            twine upload --repository testpypi --username __token__ --password $TESTPYPI_API_KEY dist/*
 
 jobs:
   test_exclude_browser:
@@ -198,13 +216,13 @@ jobs:
           command: twine upload --repository testpypi --verbose --username __token__ --password $TESTPYPI_API_KEY dist/*
 
   publish_python_package_linux_x86:
-    executor: manylinux_x86_executor
+    executor: python_hub_executor
     working_directory: ~/project/python
     steps:
       - publish_python_package_linux
 
   publish_python_package_linux_arm:
-    executor: manylinux_arm_executor
+    executor: python_hub_executor_arm
     working_directory: ~/project/python
     steps:
       - publish_python_package_linux
