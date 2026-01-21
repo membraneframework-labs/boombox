@@ -3,12 +3,12 @@ orbs:
   elixir: membraneframework/elixir@1
 
 executors:
-  python_hub_executor:
+  python_linux_x86_executor:
     docker:
       - image: cimg/python:3.11
     resource_class: medium
 
-  python_hub_executor_arm:
+  python_linux_arm_executor:
     docker:
       - image: cimg/python:3.11
     resource_class: arm.medium
@@ -23,20 +23,11 @@ executors:
       - image: membraneframeworklabs/docker_membrane
     resource_class: arm.medium
 
-  manylinux_x86_executor:
-    docker:
-      - image: quay.io/pypa/manylinux2014_x86_64
-    resource_class: medium
-
-  manylinux_arm_executor:
-    docker:
-      - image: quay.io/pypa/manylinux2014_aarch64
-    resource_class: arm.medium
-
   macos_arm_executor:
     macos:
       xcode: 16.4.0
     resource_class: macos.m1.medium.gen1
+
 
 commands:
   mix_release_server:
@@ -217,14 +208,14 @@ jobs:
           command: twine upload --repository testpypi --verbose --username __token__ --password $TESTPYPI_API_KEY wheelhouse/*
 
   publish_python_package_linux_x86:
-    executor: python_hub_executor
+    executor: python_linux_x86_executor
     working_directory: ~/project/python
     steps:
       - publish_python_package_linux:
           arch: x86_64
 
   publish_python_package_linux_arm:
-    executor: python_hub_executor_arm
+    executor: python_linux_arm_executor
     working_directory: ~/project/python
     steps:
       - publish_python_package_linux:
