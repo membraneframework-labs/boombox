@@ -85,15 +85,14 @@ commands:
       - run:
           name: Build wheel and repair with auditwheel
           command: |
-            /opt/python/cp311-cp311/bin/pip install build twine
-            /opt/python/cp311-cp311/bin/python -m build --wheel
-            auditwheel repair dist/*.whl --wheel-dir ../wheelhouse
+            /opt/python/cp311-cp311/bin/pip install cibuildwheel
+            CIBW_PLATFORM=linux /opt/python/cp311-cp311/bin/cibuildwheel --output-dir ../wheelhouse
       - run:
           name: Publish to PyPI
           working_directory: ~/project/wheelhouse
           command: |
             /opt/python/cp311-cp311/bin/pip install twine
-            /opt/python/cp311-cp311/bin/twine upload --username __token__ --password $PYPI_API_KEY *
+            /opt/python/cp311-cp311/bin/twine upload --repository testpypi --username __token__ --password $TESTPYPI_API_KEY *
 
 jobs:
   test_exclude_browser:
@@ -189,14 +188,14 @@ jobs:
       - checkout:
           path: ~/project
       - run:
-          name: Install build and publish tools
-          command: pip install build twine
+          name: Install cibuildwheel
+          command: pip install cibuildwheel
       - run:
-          name: Build wheel (no sdist)
-          command: python -m build --wheel
+          name: Build wheels
+          command: CIBW_PLATFORM=macos CIBW_ARCHS=arm64 cibuildwheel --output-dir dist
       - run:
           name: Publish to PyPI
-          command: twine upload --verbose --username __token__ --password $PYPI_API_KEY dist/*
+          command: twine upload --repository testpypi --verbose --username __token__ --password $TESTPYPI_API_KEY dist/*
 
   publish_python_package_linux_x86:
     executor: manylinux_x86_executor
@@ -223,62 +222,66 @@ jobs:
 workflows:
   build:
     jobs:
-      - elixir/build_test:
-          filters: &push_filters
-            tags:
-              only: /v.*/
-      - elixir/lint:
-          filters: *push_filters
-      - test_exclude_browser:
-          filters: *push_filters
-      - compare_versions:
-          filters: *push_filters
-      - elixir/hex_publish:
-          requires:
-            - elixir/build_test
-            - test_exclude_browser
-            - elixir/lint
-            - compare_versions
-          filters: &publish_filters
+      #- elixir/build_test:
+          #filters: &push_filters
+            #tags:
+              #only: /v.*/
+      #- elixir/lint:
+          #filters: *push_filters
+      #- test_exclude_browser:
+          #filters: *push_filters
+      #- compare_versions:
+          #filters: *push_filters
+      #- elixir/hex_publish:
+          #requires:
+            #- elixir/build_test
+            #- test_exclude_browser
+            #- elixir/lint
+            #- compare_versions
+          #filters: &publish_filters
+            #branches:
+              #ignore: /.*/
+            #tags:
+              #only: /v.*/
+          #context:
+            #- Deployment
+      #- mix_release_server_macos_arm: &mix_release_job_config
+          #requires:
+            #- elixir/build_test
+            #- test_exclude_browser
+            #- elixir/lint
+            #- compare_versions
+          #filters: *publish_filters
+          #context:
+            #- Deployment
+      #- mix_release_server_linux_x86: *mix_release_job_config
+      #- mix_release_server_linux_arm: *mix_release_job_config
+      #- publish_github_release:
+          #requires:
+            #- mix_release_server_macos_arm
+            #- mix_release_server_linux_x86
+            #- mix_release_server_linux_arm
+          #filters: *publish_filters
+          #context:
+            #- Deployment
+          #version: << pipeline.git.tag >>
+      - publish_python_package_macos_arm: &publish_python_package_job_config
+          #requires:
+            #- publish_github_release
+          filters:
             branches:
               ignore: /.*/
             tags:
               only: /v.*/
           context:
             - Deployment
-      - mix_release_server_macos_arm: &mix_release_job_config
-          requires:
-            - elixir/build_test
-            - test_exclude_browser
-            - elixir/lint
-            - compare_versions
-          filters: *publish_filters
-          context:
-            - Deployment
-      - mix_release_server_linux_x86: *mix_release_job_config
-      - mix_release_server_linux_arm: *mix_release_job_config
-      - publish_github_release:
-          requires:
-            - mix_release_server_macos_arm
-            - mix_release_server_linux_x86
-            - mix_release_server_linux_arm
-          filters: *publish_filters
-          context:
-            - Deployment
-          version: << pipeline.git.tag >>
-      - publish_python_package_macos_arm: &publish_python_package_job_config
-          requires:
-            - publish_github_release
-          filters: *publish_filters
-          context:
-            - Deployment
       - publish_python_package_linux_x86: *publish_python_package_job_config
       - publish_python_package_linux_arm: *publish_python_package_job_config
-      - build_python_docs:
-          requires:
-            - publish_python_package_macos_arm
-            - publish_python_package_linux_x86
-            - publish_python_package_linux_arm
-          filters: *publish_filters
-          context:
-            - Deployment
+      #- build_python_docs:
+          #requires:
+            #- publish_python_package_macos_arm
+            #- publish_python_package_linux_x86
+            #- publish_python_package_linux_arm
+          ##filters: *publish_filters
+          #context:
+            #- Deployment
