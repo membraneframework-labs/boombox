@@ -102,9 +102,7 @@ commands:
             # Create the output directory explicitly
             mkdir -p wheelhouse
 
-            # Run cibuildwheel (it will auto-detect platform and spin up containers)
-            # We output to the local 'wheelhouse' directory
-            cibuildwheel --output-dir wheelhouse
+            CIBW_ARCHS=<< parameters.arch >> CIBW_SKIP="*musllinux*" cibuildwheel --output-dir wheelhouse
       - run:
           name: Publish to PyPI
           command: |
@@ -218,13 +216,15 @@ jobs:
     executor: python_hub_executor
     working_directory: ~/project/python
     steps:
-      - publish_python_package_linux
+      - publish_python_package_linux:
+          arch: x86_64
 
   publish_python_package_linux_arm:
     executor: python_hub_executor_arm
     working_directory: ~/project/python
     steps:
-      - publish_python_package_linux
+      - publish_python_package_linux:
+          arch: aarch64
 
   build_python_docs:
     docker:
