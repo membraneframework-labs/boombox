@@ -107,10 +107,9 @@ commands:
             cibuildwheel --output-dir wheelhouse
       - run:
           name: Publish to PyPI
-          working_directory: ~/project/wheelhouse
           command: |
             pip install twine
-            twine upload --repository testpypi --username __token__ --password $TESTPYPI_API_KEY dist/*
+            twine upload --repository testpypi --username __token__ --password $TESTPYPI_API_KEY wheelhouse/*
 
 jobs:
   test_exclude_browser:
@@ -210,10 +209,10 @@ jobs:
           command: pip install cibuildwheel twine
       - run:
           name: Build wheels
-          command: CIBW_PLATFORM=macos CIBW_ARCHS=arm64 cibuildwheel --output-dir dist
+          command: CIBW_PLATFORM=macos CIBW_ARCHS=arm64 cibuildwheel --output-dir wheelhouse
       - run:
           name: Publish to PyPI
-          command: twine upload --repository testpypi --verbose --username __token__ --password $TESTPYPI_API_KEY dist/*
+          command: twine upload --repository testpypi --verbose --username __token__ --password $TESTPYPI_API_KEY wheelhouse/*
 
   publish_python_package_linux_x86:
     executor: python_hub_executor
