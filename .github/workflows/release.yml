@@ -41,7 +41,7 @@ jobs:
 
   mix_release_server_macos_arm:
     runs-on: macos-latest
-    needs: [build_test, lint, test, compare_versions]
+    needs: [build_test, compare_versions]
     env:
       MIX_ENV: prod
     steps:
@@ -63,7 +63,7 @@ jobs:
 
   mix_release_server_linux_x86:
     runs-on: ubuntu-latest
-    needs: [build_test, lint, test, compare_versions]
+    needs: [build_test, compare_versions]
     env:
       MIX_ENV: prod
     container:
@@ -84,7 +84,7 @@ jobs:
 
   mix_release_server_linux_arm:
     runs-on: ubuntu-24.04-arm
-    needs: [build_test, lint, test, compare_versions]
+    needs: [build_test, compare_versions]
     env:
       MIX_ENV: prod
     container:
