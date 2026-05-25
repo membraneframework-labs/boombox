@@ -144,7 +144,7 @@ jobs:
             path: python/wheelhouse/*
 
   build_python_package_linux_arm:
-    runs-on: ubuntu-latest-arm64 # or your custom ARM runner tag
+    runs-on: ubuntu-24.04-arm
     defaults:
       run:
         working-directory: python
