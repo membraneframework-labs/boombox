@@ -12,17 +12,17 @@ permissions:
 jobs:
   # Phase 1 — CI checks
 
-  # build_test:
-  #   uses: membraneframework/membrane_actions/.github/workflows/build-test.yml@main
-  #
-  # lint:
-  #   uses: membraneframework/membrane_actions/.github/workflows/lint.yml@main
-  #
-  # test:
-  #   uses: membraneframework/membrane_actions/.github/workflows/test.yml@main
-  #   with:
-  #     test-flags: "--exclude browser"
-  #     shards: 4
+  build_test:
+    uses: membraneframework/membrane_actions/.github/workflows/build-test.yml@main
+
+  lint:
+    uses: membraneframework/membrane_actions/.github/workflows/lint.yml@main
+
+  test:
+    uses: membraneframework/membrane_actions/.github/workflows/test.yml@main
+    with:
+      test-flags: "--exclude browser"
+      shards: 4
 
   compare_versions:
     runs-on: ubuntu-latest
@@ -41,7 +41,7 @@ jobs:
 
   mix_release_server_macos_arm:
     runs-on: macos-latest
-    needs: [compare_versions]
+    needs: [build_test, lint, test, compare_versions]
     env:
       MIX_ENV: prod
     steps:
@@ -63,7 +63,7 @@ jobs:
 
   mix_release_server_linux_x86:
     runs-on: ubuntu-latest
-    needs: [compare_versions]
+    needs: [build_test, lint, test, compare_versions]
     env:
       MIX_ENV: prod
     container:
@@ -84,7 +84,7 @@ jobs:
 
   mix_release_server_linux_arm:
     runs-on: ubuntu-24.04-arm
-    needs: [compare_versions]
+    needs: [build_test, lint, test, compare_versions]
     env:
       MIX_ENV: prod
     container:
@@ -121,14 +121,15 @@ jobs:
 
   # Phase 4 — Publish packages
 
-  # hex_publish:
-  #   needs: [publish_github_release]
-  #   uses: membraneframework/membrane_actions/.github/workflows/hex-publish.yml@main
-  #   secrets:
-  #     HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+  hex_publish:
+    needs: [publish_github_release]
+    uses: membraneframework/membrane_actions/.github/workflows/hex-publish.yml@main
+    secrets:
+      HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
 
   build_python_package_linux_x86:
       runs-on: ubuntu-latest
+      needs: [build_test, lint, test, compare_versions]
       defaults:
         run:
           working-directory: python
@@ -145,6 +146,7 @@ jobs:
 
   build_python_package_linux_arm:
     runs-on: ubuntu-24.04-arm
+    needs: [build_test, lint, test, compare_versions]
     defaults:
       run:
         working-directory: python
@@ -161,6 +163,7 @@ jobs:
 
   build_python_package_macos_arm:
     runs-on: macos-latest
+    needs: [build_test, lint, test, compare_versions]
     defaults:
       run:
         working-directory: python
@@ -204,8 +207,8 @@ jobs:
 
   # Phase 5 — Docs
 
-  # build_python_docs:
-  #   runs-on: ubuntu-latest
-  #   needs: [build_python_package_macos_arm, build_python_package_linux_x86, build_python_package_linux_arm]
-  #   steps:
-  #     - run: curl -X POST -d "token=${{ secrets.READTHEDOCS_WEBHOOK_TOKEN }}" "${{ secrets.READTHEDOCS_WEBHOOK_URL }}"
+  build_python_docs:
+    runs-on: ubuntu-latest
+    needs: [upload_to_pypi]
+    steps:
+      - run: curl -X POST -d "token=${{ secrets.READTHEDOCS_WEBHOOK_TOKEN }}" "${{ secrets.READTHEDOCS_WEBHOOK_URL }}"
