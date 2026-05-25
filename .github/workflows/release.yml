@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 jobs:
-  # Phase 1 — CI checks
+  # CI checks
 
   build_test:
     uses: membraneframework/membrane_actions/.github/workflows/build-test.yml@main
@@ -37,7 +37,7 @@ jobs:
             exit 1
           fi
 
-  # Phase 2 — Server release builds
+  # Build releases
 
   mix_release_server_macos_arm:
     runs-on: macos-latest
@@ -103,7 +103,7 @@ jobs:
           name: boombox-server-linux-arm
           path: artifacts/boombox-server-linux-arm.tar.gz
 
-  # Phase 3 — Publish GitHub release
+  # Publish GitHub release
 
   publish_github_release:
     runs-on: ubuntu-latest
@@ -119,13 +119,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Phase 4 — Publish packages
+  # Publish package on hex
 
   hex_publish:
     needs: [publish_github_release]
     uses: membraneframework/membrane_actions/.github/workflows/hex-publish.yml@main
     secrets:
       HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+
+  # Build python packages
 
   build_python_package_linux_x86:
       runs-on: ubuntu-latest
@@ -138,7 +140,6 @@ jobs:
         - run: pip install cibuildwheel
         - run: CIBW_ARCHS=x86_64 CIBW_SKIP="*musllinux*" cibuildwheel --output-dir wheelhouse
 
-        # Save the wheels for later
         - uses: actions/upload-artifact@v4
           with:
             name: wheels-linux-x86
@@ -155,7 +156,6 @@ jobs:
       - run: pip install cibuildwheel
       - run: CIBW_ARCHS=aarch64 CIBW_SKIP="*musllinux*" cibuildwheel --output-dir wheelhouse
 
-      # Save the wheels for later
       - uses: actions/upload-artifact@v4
         with:
           name: wheels-linux-arm
@@ -172,16 +172,15 @@ jobs:
       - run: pip install cibuildwheel
       - run: CIBW_ARCHS=arm64 cibuildwheel --output-dir wheelhouse
 
-      # Save the wheels for later
       - uses: actions/upload-artifact@v4
         with:
           name: wheels-macos-arm
           path: python/wheelhouse/*
 
-  # --- PHASE 2: COLLECT AND UPLOAD EVERYTHING ---
+  # Upload to PyPI
 
   upload_to_pypi:
-    runs-on: ubuntu-latest # This ensures the PyPI docker container runs flawlessly
+    runs-on: ubuntu-latest
     needs: [
       publish_github_release,
       build_python_package_linux_x86,
@@ -189,7 +188,6 @@ jobs:
       build_python_package_macos_arm
     ]
     steps:
-      # Download all the wheels saved from the previous jobs into a 'dist' folder
       - name: Download all built wheels
         uses: actions/download-artifact@v4
         with:
@@ -197,7 +195,6 @@ jobs:
           path: dist
           merge-multiple: true
 
-      # Publish everything to TestPyPI in one go
       - name: Publish package to TestPyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
@@ -205,7 +202,7 @@ jobs:
           password: ${{ secrets.PYPI_API_KEY }}
           packages-dir: dist/
 
-  # Phase 5 — Docs
+  # Build python docs
 
   build_python_docs:
     runs-on: ubuntu-latest
